@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard">
+
+    <div class="page_header">
+        <div>
+            <h1>Admin Dashboard</h1>
+            <p class="subtitle">Overview of your hotel bookings</p>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat_card">
+            <h3>{{ total_bookings }}</h3>
+            <p>Total Bookings</p>
+        </div>
+        <div class="stat_card">
+            <h3>{{ pending_count }}</h3>
+            <p>Pending</p>
+        </div>
+        <div class="stat_card">
+            <h3>{{ today_checkins }}</h3>
+            <p>Check-ins Today</p>
+        </div>
+        <div class="stat_card">
+            <h3>{{ total_rooms }}</h3>
+            <p>Total Rooms</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>All Bookings</h2>
+
+        <table class="table">
+            <tr>
+                <th>Guest</th>
+                <th>Room</th>
+                <th>Check-in</th>
+                <th>Check-out</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Action</th>
+            </tr>
+            {% for booking in bookings %}
+            <tr>
+                <td>{{ booking.user.username }}</td>
+                <td>{{ booking.room.room_name }}</td>
+                <td>{{ booking.check_in }}</td>
+                <td>{{ booking.check_out }}</td>
+                <td>₱{{ booking.total_price }}</td>
+                <td>
+                    <span class="badge badge_{{ booking.status|lower }}">{{ booking.status }}</span>
+                </td>
+                <td><span class="badge badge_{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span></td>
+                <td class="actions">
+                    <div class="booking-admin-actions">
+                        <form method="POST" action="{% url 'update_status' booking.id 'Confirmed' %}" class="inline_form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn_small" {% if booking.status == 'Confirmed' or booking.payment_status != 'Paid' %}disabled title="Confirmation is available after payment"{% endif %}>Confirm</button>
+                        </form>
+                        <form method="POST" action="{% url 'update_status' booking.id 'Cancelled' %}" class="inline_form">
+                            {% csrf_token %}
+                            <button type="submit" class="btn_small btn_cancel" {% if booking.status == 'Cancelled' or booking.payment_status == 'Paid' %}disabled title="Paid bookings cannot be cancelled here"{% endif %}>Cancel</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8">No bookings yet.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
+{% endblock %}

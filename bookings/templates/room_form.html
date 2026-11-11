@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="form_box">
+    <h2>{{ title }}</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <div class="photo_box">
+            <label>Room photo</label>
+            {% if form.image_url.value %}
+                <img id="upload_preview" src="{{ form.image_url.value }}" class="preview_img">
+            {% else %}
+                <img id="upload_preview" class="preview_img" style="display: none;">
+            {% endif %}
+            <input type="file" id="photo_file" accept="image/*">
+            <button type="button" id="upload_btn" class="upload_btn">Upload Photo</button>
+            <p id="upload_status" class="upload_status"></p>
+        </div>
+
+        <div class="form_actions">
+            <a href="{% url 'manage_rooms' %}" class="btn_outline">Cancel</a>
+            <button type="submit">Save Room</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Cloudinary API: upload the room photo
+    const cloudName = "f3kpgpdi";
+    const uploadPreset = "hotel_rooms";
+
+    document.getElementById("upload_btn").addEventListener("click", function () {
+        const file = document.getElementById("photo_file").files[0];
+        const status = document.getElementById("upload_status");
+
+        if (!file) {
+            status.innerText = "Please choose a photo first.";
+            return;
+        }
+
+        status.innerText = "Uploading...";
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", uploadPreset);
+
+        fetch("https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.secure_url) {
+                    document.getElementById("id_image_url").value = data.secure_url;
+                    document.getElementById("upload_preview").src = data.secure_url;
+                    document.getElementById("upload_preview").style.display = "block";
+                    status.innerText = "Uploaded! Now click Save Room.";
+                } else {
+                    status.innerText = "Upload failed: " + (data.error ? data.error.message : "unknown error");
+                }
+            })
+            .catch(() => {
+                status.innerText = "Upload failed. Check your internet connection.";
+            });
+    });
+</script>
+{% endblock %}

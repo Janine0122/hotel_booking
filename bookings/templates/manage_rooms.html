@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard">
+
+    <div class="page_header">
+        <div>
+            <h1>Rooms</h1>
+            <p class="subtitle">Add, edit, archive or restore hotel rooms</p>
+        </div>
+        <a href="{% url 'add_room' %}" class="btn">+ Add Room</a>
+    </div>
+
+    <div class="panel">
+        <table class="table">
+            <tr>
+                <th>Photo</th>
+                <th>Room</th>
+                <th>Price</th>
+                <th>Capacity</th>
+                <th>Listing</th>
+                <th>Action</th>
+            </tr>
+            {% for room in rooms %}
+            <tr>
+                <td>
+                    {% if room.image_url %}
+                        <img src="{{ room.image_url }}" alt="{{ room.room_name }}" class="room_thumb">
+                    {% else %}
+                        <div class="room_thumb room_thumb_empty">No photo</div>
+                    {% endif %}
+                </td>
+                <td>{{ room.room_name }}</td>
+                <td>₱{{ room.price }}</td>
+                <td>{{ room.capacity }} guests</td>
+                <td>{% if room.is_active %}Active{% else %}Archived{% endif %}</td>
+                <td class="actions">
+                    <a href="{% url 'edit_room' room.id %}" class="btn_small">Edit</a>
+                    <form method="POST" action="{% url 'toggle_room_active' room.id %}" class="inline_form"
+                          onsubmit="return confirm('{% if room.is_active %}Archive{% else %}Restore{% endif %} this room? Existing booking history will be kept.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn_small{% if room.is_active %} btn_cancel{% endif %}">{% if room.is_active %}Archive{% else %}Restore{% endif %}</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No rooms yet. Click "Add Room" to create one.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+</div>
+{% endblock %}

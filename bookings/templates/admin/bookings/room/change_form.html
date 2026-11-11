@@ -1,0 +1,52 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+<div style="margin: 15px 0; padding: 15px; background: #f6f3fc; border-radius: 8px;">
+    <strong>Upload a room photo (Cloudinary)</strong><br><br>
+    <input type="file" id="photo_file" accept="image/*">
+    <button type="button" id="upload_btn">Upload Photo</button>
+    <p id="upload_status"></p>
+    <img id="upload_preview" style="max-width: 200px; display: none; margin-top: 10px; border-radius: 8px;">
+</div>
+
+<script>
+    // Cloudinary API: upload the room photo
+    const cloudName = "f3kpgpdi";
+    const uploadPreset = "hotel_rooms";
+
+    document.getElementById("upload_btn").addEventListener("click", function () {
+        const file = document.getElementById("photo_file").files[0];
+        const status = document.getElementById("upload_status");
+
+        if (!file) {
+            status.innerText = "Please choose a photo first.";
+            return;
+        }
+
+        status.innerText = "Uploading...";
+
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", uploadPreset);
+
+        fetch("https://api.cloudinary.com/v1_1/" + cloudName + "/image/upload", {
+            method: "POST",
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.secure_url) {
+                    document.getElementById("id_image_url").value = data.secure_url;
+                    document.getElementById("upload_preview").src = data.secure_url;
+                    document.getElementById("upload_preview").style.display = "block";
+                    status.innerText = "Uploaded! Now click SAVE below.";
+                } else {
+                    status.innerText = "Upload failed: " + (data.error ? data.error.message : "unknown error");
+                }
+            })
+            .catch(() => {
+                status.innerText = "Upload failed. Check your internet connection.";
+            });
+    });
+</script>
+{% endblock %}

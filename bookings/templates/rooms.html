@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="rooms-page">
+    <div class="rooms-page__header">
+        <h1>Rooms</h1>
+        <p>Choose a room to select your check-in and check-out dates.</p>
+    </div>
+
+    <div class="room_list rooms-page__results">
+        {% for room in rooms %}
+        <div class="room_card">
+            {% if room.image_url %}
+                <img src="{{ room.image_url }}" alt="{{ room.room_name }}" loading="lazy">
+            {% else %}
+                <div class="room_placeholder">No photo yet</div>
+            {% endif %}
+            <h3>{{ room.room_name }}</h3>
+            <p>{{ room.description }}</p>
+            <p>Capacity: {{ room.capacity }} guests</p>
+            <p class="price">₱{{ room.price }} / night</p>
+            <a href="{% url 'book_room' room.id %}" class="btn">Book Now</a>
+        </div>
+        {% empty %}
+        <p class="rooms-page__empty">There are no rooms available right now. Please check back soon.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

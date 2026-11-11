@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard customer-dashboard">
+    <div class="page_header customer-page-header">
+        <div>
+            <p class="customer-kicker">YOUR HOTEL BOOKING ACCOUNT</p>
+            <h1>Welcome back, {{ user.first_name|default:user.username }}</h1>
+            <p class="subtitle">Your stay at a glance.</p>
+        </div>
+        <div class="customer-dashboard__actions">
+            <a href="{% url 'my_bookings' %}" class="btn_outline">My Bookings</a>
+            <a href="{% url 'rooms' %}" class="btn">Rooms</a>
+        </div>
+    </div>
+
+    <div class="stats customer-stats">
+        <div class="stat_card"><h3>{{ total_bookings }}</h3><p>Total Bookings</p></div>
+        <div class="stat_card"><h3>{{ upcoming_count }}</h3><p>Upcoming Stays</p></div>
+        <div class="stat_card"><h3>{{ pending_count }}</h3><p>Awaiting Confirmation</p></div>
+    </div>
+
+    {% if next_booking %}
+    <div class="next-stay-note">
+        <span class="next-stay-note__label">YOUR NEXT STAY</span>
+        <strong>{{ next_booking.room.room_name }}</strong>
+        <span>{{ next_booking.check_in|date:"M j, Y" }} – {{ next_booking.check_out|date:"M j, Y" }}</span>
+        <span class="badge badge_{{ next_booking.status|lower }}">{{ next_booking.status }}</span>
+    </div>
+    {% else %}
+    <div class="next-stay-note next-stay-note--empty">
+        <span class="next-stay-note__label">YOUR NEXT STAY</span>
+        <strong>No upcoming stays</strong>
+        <a href="{% url 'rooms' %}" class="btn_small">Find a Room</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

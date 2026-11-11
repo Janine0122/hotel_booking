@@ -1,0 +1,22 @@
+# Python virtual environments and bytecode
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local database and collected/generated files
+db.sqlite3
+*.sqlite3
+staticfiles/
+media/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Editor and operating system files
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <div class="hero">
+        <p class="hero_kicker"><span aria-hidden="true">✦</span> A WELCOMING STAY IN ILIGAN CITY</p>
+        <h1>Welcome to Hotel Booking</h1>
+        <p>Comfortable rooms, simple booking.</p>
+        <p id="weather" class="weather_box">Loading weather...</p>
+        <a href="{% url 'rooms' %}" class="btn">Find an Available Room</a>
+        <p class="hero_note">Choose your room, pick your dates, and we’ll take care of the rest.</p>
+    </div>
+
+    <section class="home-highlights" aria-label="How booking works">
+        <article class="home-highlight">
+            <span class="home-highlight__icon" aria-hidden="true">⌂</span>
+            <div>
+                <h3>Find your room</h3>
+                <p>Browse available rooms, compare nightly rates, and choose the stay that suits you.</p>
+            </div>
+        </article>
+        <article class="home-highlight">
+            <span class="home-highlight__icon" aria-hidden="true">▦</span>
+            <div>
+                <h3>Choose your dates</h3>
+                <p>Check availability for your visit before you send your booking request.</p>
+            </div>
+        </article>
+        <article class="home-highlight">
+            <span class="home-highlight__icon" aria-hidden="true">✓</span>
+            <div>
+                <h3>Stay in the loop</h3>
+                <p>See your booking details and status anytime in My Bookings.</p>
+            </div>
+        </article>
+    </section>
+
+    <h2 class="section_title">Find Us</h2>
+    <p class="location_caption"><span aria-hidden="true">⌖</span> Iligan City, Philippines</p>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const url = "https://api.open-meteo.com/v1/forecast?latitude=8.228&longitude=124.245&current_weather=true";
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const temp = data.current_weather.temperature;
+                const code = data.current_weather.weathercode;
+                let text = "Clear skies";
+                if (code >= 1 && code <= 3) text = "Partly cloudy";
+                if (code >= 45 && code <= 48) text = "Foggy";
+                if (code >= 51 && code <= 67) text = "Rainy";
+                if (code >= 80 && code <= 82) text = "Rain showers";
+                if (code >= 95) text = "Thunderstorm";
+                document.getElementById("weather").innerText =
+                    "Today in Iligan City: " + temp + "°C, " + text;
+            })
+            .catch(() => {
+                document.getElementById("weather").innerText = "Weather is not available right now.";
+            });
+
+        const hotelLat = 8.228;
+        const hotelLng = 124.245;
+        const map = L.map("map").setView([hotelLat, hotelLng], 15);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
+        L.marker([hotelLat, hotelLng]).addTo(map)
+            .bindPopup("Hotel Booking<br>Iligan City")
+            .openPopup();
+    </script>
+{% endblock %}

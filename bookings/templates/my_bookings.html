@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard">
+    {% if user.is_staff %}
+    <div class="page_header">
+        <div>
+            <h1>Bookings</h1>
+            <p class="subtitle">All bookings made by guests</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <table class="table">
+            <tr>
+                <th>Guest</th><th>Room</th><th>Check-in</th><th>Check-out</th><th>Total</th><th>Status</th><th>Payment</th><th>Action</th>
+            </tr>
+            {% for booking in bookings %}
+            <tr>
+                <td>{{ booking.user.username }}</td>
+                <td>{{ booking.room.room_name }}</td>
+                <td>{{ booking.check_in }}</td>
+                <td>{{ booking.check_out }}</td>
+                <td>₱{{ booking.total_price }}</td>
+                <td><span class="badge badge_{{ booking.status|lower }}">{{ booking.status }}</span></td>
+                <td><span class="badge badge_{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span></td>
+                <td class="actions">
+                    <div class="booking-admin-actions">
+                        <form method="POST" action="{% url 'update_status' booking.id 'Confirmed' %}" class="inline_form">
+                            {% csrf_token %}<button type="submit" class="btn_small" {% if booking.status == 'Confirmed' or booking.payment_status != 'Paid' %}disabled title="Confirmation is available after payment"{% endif %}>Confirm</button>
+                        </form>
+                        <form method="POST" action="{% url 'update_status' booking.id 'Cancelled' %}" class="inline_form">
+                            {% csrf_token %}<button type="submit" class="btn_small btn_cancel" {% if booking.status == 'Cancelled' or booking.payment_status == 'Paid' %}disabled title="Cancelled bookings or paid bookings cannot be cancelled here"{% endif %}>Cancel</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}<tr><td colspan="8">No bookings yet.</td></tr>{% endfor %}
+        </table>
+    </div>
+    {% else %}
+    <div class="page_header customer-page-header">
+        <div>
+            <h1>My Bookings</h1>
+            <p class="subtitle">Your bookings and their current status.</p>
+        </div>
+    </div>
+
+    <div class="panel customer-bookings-panel">
+        <div class="customer-table-wrap">
+            <table class="table">
+                <thead><tr><th>Room</th><th>Check-in</th><th>Check-out</th><th>Total</th><th>Status</th><th>Payment</th><th>Manage</th></tr></thead>
+                <tbody>
+                {% for booking in bookings %}
+                <tr>
+                    <td class="customer-room-name">{{ booking.room.room_name }}</td>
+                    <td>{{ booking.check_in|date:"M j, Y" }}</td>
+                    <td>{{ booking.check_out|date:"M j, Y" }}</td>
+                    <td>₱{{ booking.total_price }}</td>
+                    <td><span class="badge badge_{{ booking.status|lower }}">{{ booking.status }}</span></td>
+                    <td>
+                        <span class="badge badge_{{ booking.payment_status|lower }}">{{ booking.payment_status }}</span>
+                        {% if booking.payment_status != 'Paid' and booking.status != 'Cancelled' and not paypal_client_id %}<small class="payment-config-note">PayPal setup needed</small>{% endif %}
+                    </td>
+                    <td class="actions">
+                        <div class="booking-manage-actions">
+                            {% if booking.status == 'Pending' or booking.status == 'Confirmed' %}
+                                {% if booking.payment_status != 'Paid' and booking.check_in >= today %}
+                                <form method="POST" action="{% url 'cancel_booking' booking.id %}" class="inline_form">
+                                    {% csrf_token %}<button type="submit" class="btn_small btn_cancel">Cancel</button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                            {% if booking.status == 'Cancelled' or booking.payment_status == 'Paid' or booking.check_in < today %}<span class="customer-no-action">—</span>{% endif %}
+                            {% if booking.payment_status != 'Paid' and booking.status != 'Cancelled' and paypal_client_id %}
+                                <paypal-button id="paypal-button-{{ booking.id }}" type="pay" hidden data-booking-id="{{ booking.id }}" data-create-url="{% url 'paypal_create_order' %}" data-capture-url="{% url 'paypal_capture_order' %}" data-cancel-url="{% url 'paypal_cancel_order' %}"></paypal-button>
+                                <span id="payment-message-{{ booking.id }}" class="payment-message" aria-live="polite"></span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7"><div class="customer-empty"><strong>No bookings yet</strong><span>Your stays will show here once you make a booking.</span><a href="{% url 'rooms' %}" class="btn">Find a Room</a></div></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if not user.is_staff and paypal_client_id %}
+<script>
+    const paypalSdkScript = document.createElement("script");
+    paypalSdkScript.src = "{% if paypal_mode == 'live' %}https://www.paypal.com{% else %}https://www.sandbox.paypal.com{% endif %}/web-sdk/v6/core";
+    paypalSdkScript.onload = initializePayPal;
+    paypalSdkScript.onerror = () => document.querySelectorAll(".payment-message").forEach((node) => node.textContent = "PayPal checkout could not load.");
+    document.head.appendChild(paypalSdkScript);
+
+    function getCsrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : "";
+    }
+
+    async function postPayment(url, payload) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCsrfToken() },
+            body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Payment request failed.");
+        return data;
+    }
+
+    async function initializePayPal() {
+        try {
+            const sdk = await window.paypal.createInstance({
+                clientId: "{{ paypal_client_id|escapejs }}",
+                components: ["paypal-payments"],
+                pageType: "checkout",
+            });
+            const methods = await sdk.findEligibleMethods({ currencyCode: "PHP" });
+            if (!methods.isEligible("paypal")) {
+                document.querySelectorAll(".payment-message").forEach((node) => node.textContent = "PayPal is not available in this browser.");
+                return;
+            }
+
+            document.querySelectorAll("paypal-button[data-booking-id]").forEach((button) => {
+                const bookingId = button.dataset.bookingId;
+                const message = document.getElementById(`payment-message-${bookingId}`);
+                const session = sdk.createPayPalOneTimePaymentSession({
+                    onApprove: async ({ orderId }) => {
+                        message.textContent = "Completing payment...";
+                        try {
+                            await postPayment(button.dataset.captureUrl, { booking_id: bookingId, order_id: orderId });
+                            window.location.reload();
+                        } catch (error) {
+                            message.textContent = error.message;
+                        }
+                    },
+                    onCancel: async ({ orderId } = {}) => {
+                        await postPayment(button.dataset.cancelUrl, { booking_id: bookingId, order_id: orderId || "" });
+                        message.textContent = "Payment cancelled. Your booking remains unpaid.";
+                    },
+                    onError: (error) => { message.textContent = error.message || "PayPal payment failed."; },
+                });
+                button.removeAttribute("hidden");
+                button.addEventListener("click", async () => {
+                    message.textContent = "Opening PayPal...";
+                    try {
+                        const order = await postPayment(button.dataset.createUrl, { booking_id: bookingId });
+                        await session.start({ presentationMode: "auto" }, Promise.resolve({ orderId: order.orderId }));
+                    } catch (error) {
+                        message.textContent = error.message;
+                    }
+                });
+            });
+        } catch (error) {
+            document.querySelectorAll(".payment-message").forEach((node) => node.textContent = error.message || "PayPal could not be initialized.");
+        }
+    }
+</script>
+{% endif %}
+{% endblock %}

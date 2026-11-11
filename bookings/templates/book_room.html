@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="form_box">
+    <h2>Book {{ room.room_name }}</h2>
+    <p>₱{{ room.price }} / night</p>
+    <div id="stay_total" class="stay_total" data-nightly-rate="{{ room.price }}" data-tax-rate="{{ tax_rate }}" aria-live="polite">
+        <p>Choose your dates to see the total.</p>
+    </div>
+    <div class="payment-next-step">
+        <strong>Payment</strong>
+        {% if paypal_client_id %}
+            <p>After confirming your dates, you can pay securely with PayPal in My Bookings.</p>
+        {% else %}
+            <p>PayPal checkout is not configured yet. Your booking will be saved as unpaid; ask the site administrator to finish PayPal setup.</p>
+        {% endif %}
+    </div>
+    <form method="POST" id="booking-form" data-availability-url="{% url 'check_room_availability' room.id %}">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p id="availability_status" class="availability_status" aria-live="polite"></p>
+        <p id="holiday_note" class="holiday_note"></p>
+        <div class="form_actions">
+            <a href="{% url 'rooms' %}" class="btn_outline">Cancel</a>
+            <button type="submit">Confirm Booking</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Nager.Date API: check if the check-in date is a public holiday
+    const checkIn = document.getElementById("id_check_in");
+    const checkOut = document.getElementById("id_check_out");
+    const note = document.getElementById("holiday_note");
+    const availabilityMessage = document.getElementById("availability_status");
+    const bookingForm = document.getElementById("booking-form");
+    const confirmButton = bookingForm.querySelector('button[type="submit"]');
+    let availabilityRequest;
+
+    function updateStayTotal() {
+        const totalBox = document.getElementById("stay_total");
+        if (!checkIn.value || !checkOut.value) {
+            totalBox.replaceChildren(Object.assign(document.createElement("p"), { textContent: "Choose your dates to see the total." }));
+            return;
+        }
+        const nights = (Date.parse(`${checkOut.value}T00:00:00Z`) - Date.parse(`${checkIn.value}T00:00:00Z`)) / 86400000;
+        if (nights <= 0) {
+            totalBox.replaceChildren(Object.assign(document.createElement("p"), { textContent: "Check-out must be after check-in." }));
+            return;
+        }
+        const rate = Number(totalBox.dataset.nightlyRate);
+        const taxRate = Number(totalBox.dataset.taxRate);
+        const subtotal = rate * nights;
+        const tax = Math.round((subtotal * taxRate / 100 + Number.EPSILON) * 100) / 100;
+        const total = subtotal + tax;
+        const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+        const taxLine = taxRate > 0 ? `<p>Tax (${taxRate}%) <span>${currency.format(tax)}</span></p>` : "";
+        totalBox.innerHTML = `<p>${nights} night${nights === 1 ? "" : "s"}</p><p>Room subtotal <span>${currency.format(subtotal)}</span></p>${taxLine}<strong>Total <span>${currency.format(total)}</span></strong>`;
+    }
+
+    function checkAvailability() {
+        availabilityMessage.textContent = "";
+        availabilityMessage.className = "availability_status";
+        if (!checkIn.value || !checkOut.value) return;
+
+        if (availabilityRequest) availabilityRequest.abort();
+        availabilityRequest = new AbortController();
+        confirmButton.disabled = true;
+        availabilityMessage.textContent = "Checking room availability...";
+
+        const url = new URL(bookingForm.dataset.availabilityUrl, window.location.origin);
+        url.searchParams.set("check_in", checkIn.value);
+        url.searchParams.set("check_out", checkOut.value);
+        fetch(url, { signal: availabilityRequest.signal })
+            .then(response => response.json().then(data => ({ response, data })))
+            .then(({ response, data }) => {
+                availabilityMessage.textContent = data.message;
+                if (!response.ok || !data.valid) {
+                    availabilityMessage.classList.add("availability_status--error");
+                    confirmButton.disabled = true;
+                } else if (!data.available) {
+                    availabilityMessage.classList.add("availability_status--error");
+                    confirmButton.disabled = true;
+                } else {
+                    availabilityMessage.classList.add("availability_status--available");
+                    confirmButton.disabled = false;
+                }
+            })
+            .catch(error => {
+                if (error.name === "AbortError") return;
+                availabilityMessage.textContent = "Availability could not be checked. Submit to validate your dates.";
+                availabilityMessage.classList.add("availability_status--error");
+                confirmButton.disabled = false;
+            });
+    }
+
+    checkIn.addEventListener("change", checkAvailability);
+    checkOut.addEventListener("change", checkAvailability);
+    checkIn.addEventListener("change", updateStayTotal);
+    checkOut.addEventListener("change", updateStayTotal);
+    if (checkIn.value && checkOut.value) {
+        checkAvailability();
+        updateStayTotal();
+    }
+
+    checkIn.addEventListener("change", function () {
+        note.innerText = "";
+        if (!checkIn.value) return;
+
+        const year = checkIn.value.split("-")[0];
+        const url = "https://date.nager.at/api/v3/PublicHolidays/" + year + "/PH";
+
+        fetch(url)
+            .then(response => response.json())
+            .then(holidays => {
+                const found = holidays.find(h => h.date === checkIn.value);
+                if (found) {
+                    note.innerText = "Note: " + found.name + " is on this date. Rooms may be busier.";
+                }
+            })
+            .catch(() => {});
+    });
+</script>
+{% endblock %}
