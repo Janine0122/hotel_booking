@@ -25,5 +25,6 @@
         <p class="rooms-page__empty">There are no rooms available right now. Please check back soon.</p>
         {% endfor %}
     </div>
+    {% include 'location_map.html' with map_id='rooms-hotel-map' %}
 </section>
 {% endblock %}

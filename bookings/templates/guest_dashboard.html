@@ -34,5 +34,7 @@
         <a href="{% url 'rooms' %}" class="btn_small">Find a Room</a>
     </div>
     {% endif %}
+
+    {% include 'location_map.html' with map_id='guest-hotel-map' %}
 </div>
 {% endblock %}

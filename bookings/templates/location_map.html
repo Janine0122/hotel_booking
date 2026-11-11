@@ -1,0 +1,26 @@
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<section class="customer-location">
+    <div class="customer-location__header">
+        <div>
+            <p class="customer-kicker">VISIT US</p>
+            <h2>Find us in Iligan City</h2>
+            <p>View our location or open directions to plan your route.</p>
+        </div>
+        <a class="btn_outline" href="https://www.google.com/maps/dir/?api=1&amp;destination=8.228%2C124.245&amp;travelmode=driving" target="_blank" rel="noopener noreferrer">Get directions</a>
+    </div>
+    <div id="{{ map_id }}" class="customer-location__map" aria-label="Map showing the hotel location"></div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    (() => {
+        const hotelLocation = [8.228, 124.245];
+        const hotelMap = L.map("{{ map_id }}").setView(hotelLocation, 15);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(hotelMap);
+        L.marker(hotelLocation).addTo(hotelMap)
+            .bindPopup("Hotel Booking<br>Iligan City");
+    })();
+</script>
